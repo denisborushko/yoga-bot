@@ -189,7 +189,10 @@ bot.action('mark', async (ctx) => {
     ]);
 
   buttons.push([
-    Markup.button.callback('⬅️ Назад', 'menu')
+    Markup.button.callback(
+      '⬅️ Назад',
+      'menu'
+    )
   ]);
 
   await safeEdit(
@@ -208,20 +211,51 @@ bot.action(/^date_(\d+)$/, async (ctx) => {
 
   const students = await getStudents();
 
-  const buttons = students.map(s => [
+  const buttons = [];
+
+  for (let i = 0; i < students.length; i += 2) {
+    const row = [];
+
+    const s1 = students[i];
+
+    row.push(
+      Markup.button.callback(
+        `${s1.name} (${s1.remaining})`,
+        `student_${s1.row}_${col}`
+      )
+    );
+
+    if (students[i + 1]) {
+      const s2 = students[i + 1];
+
+      row.push(
+        Markup.button.callback(
+          `${s2.name} (${s2.remaining})`,
+          `student_${s2.row}_${col}`
+        )
+      );
+    }
+
+    buttons.push(row);
+  }
+
+  buttons.push([
     Markup.button.callback(
-      `${s.name} (${s.remaining})`,
-      `student_${s.row}_${col}`
+      '✅ Готово',
+      'menu'
     )
   ]);
 
   buttons.push([
-    Markup.button.callback('⬅️ Назад', 'mark')
+    Markup.button.callback(
+      '⬅️ Назад',
+      'mark'
+    )
   ]);
 
   await safeEdit(
     ctx,
-    '👤 Выбери ученика:',
+    '👤 Выбери учениц:',
     Markup.inlineKeyboard(buttons)
   );
 });
@@ -229,56 +263,128 @@ bot.action(/^date_(\d+)$/, async (ctx) => {
 // ================= MARK STUDENT =================
 
 bot.action(/^student_(\d+)_(\d+)$/, async (ctx) => {
-  await ctx.answerCbQuery();
+  await ctx.answerCbQuery('✅ Отмечено');
 
   const row = Number(ctx.match[1]);
   const col = Number(ctx.match[2]);
 
   const colLetter = columnToLetter(col);
 
-  // Ставим отметку
+  // Проверяем отметку
 
-  await sheets.spreadsheets.values.update({
+  const existing = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!${colLetter}${row}`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [['✅']]
+    range: `${SHEET_NAME}!${colLetter}${row}`
+  });
+
+  const alreadyMarked =
+    existing.data.values?.[0]?.[0];
+
+  if (alreadyMarked !== '✅') {
+
+    // Ставим галочку
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!${colLetter}${row}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [['✅']]
+      }
+    });
+
+    // Получаем текущие значения
+
+    const current = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!E${row}:F${row}`
+    });
+
+    const values = current.data.values?.[0] || [];
+
+    const used = Number(values[0] || 0) + 1;
+
+    const remaining = Math.max(
+      Number(values[1] || 0) - 1,
+      0
+    );
+
+    // Обновляем остаток
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!E${row}:F${row}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[used, remaining]]
+      }
+    });
+  }
+
+  // Обновляем список
+
+  const students = await getStudents();
+
+  const buttons = [];
+
+  for (let i = 0; i < students.length; i += 2) {
+    const rowButtons = [];
+
+    const s1 = students[i];
+
+    const mark1 =
+      s1.row === row ? '✅ ' : '';
+
+    rowButtons.push(
+      Markup.button.callback(
+        `${mark1}${s1.name} (${s1.remaining})`,
+        `student_${s1.row}_${col}`
+      )
+    );
+
+    if (students[i + 1]) {
+      const s2 = students[i + 1];
+
+      const mark2 =
+        s2.row === row ? '✅ ' : '';
+
+      rowButtons.push(
+        Markup.button.callback(
+          `${mark2}${s2.name} (${s2.remaining})`,
+          `student_${s2.row}_${col}`
+        )
+      );
     }
-  });
 
-  // Получаем текущие значения
+    buttons.push(rowButtons);
+  }
 
-  const current = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!E${row}:F${row}`
-  });
+  buttons.push([
+    Markup.button.callback(
+      '✅ Готово',
+      'menu'
+    )
+  ]);
 
-  const values = current.data.values?.[0] || [];
+  buttons.push([
+    Markup.button.callback(
+      '⬅️ Назад',
+      'mark'
+    )
+  ]);
 
-  const used = Number(values[0] || 0) + 1;
-
-  const remaining = Math.max(
-    Number(values[1] || 0) - 1,
-    0
-  );
-
-  // Обновляем остаток
-
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!E${row}:F${row}`,
-    valueInputOption: 'USER_ENTERED',
-    requestBody: {
-      values: [[used, remaining]]
-    }
-  });
-
-  await safeEdit(
-    ctx,
-    '✅ Занятие отмечено',
-    mainMenu()
-  );
+  try {
+    await ctx.editMessageReplyMarkup({
+      inline_keyboard: buttons.map(r =>
+        r.map(b => ({
+          text: b.text,
+          callback_data: b.callback_data
+        }))
+      )
+    });
+  } catch (e) {
+    console.log(e);
+  }
 });
 
 // ================= RENEW =================
@@ -296,7 +402,10 @@ bot.action('renew', async (ctx) => {
   ]);
 
   buttons.push([
-    Markup.button.callback('⬅️ Назад', 'menu')
+    Markup.button.callback(
+      '⬅️ Назад',
+      'menu'
+    )
   ]);
 
   await safeEdit(
@@ -315,7 +424,9 @@ bot.action(/^renew_student_(\d+)$/, async (ctx) => {
 
   const students = await getStudents();
 
-  const student = students.find(s => s.row === row);
+  const student = students.find(
+    s => s.row === row
+  );
 
   if (!student) {
     return ctx.reply('Ошибка');
@@ -352,7 +463,7 @@ bot.action('menu', async (ctx) => {
   );
 });
 
-// ================= ERROR HANDLER =================
+// ================= ERROR =================
 
 bot.catch((err) => {
   console.error('BOT ERROR:', err);
@@ -374,7 +485,10 @@ app.listen(PORT, async () => {
   const url = process.env.RENDER_EXTERNAL_URL;
 
   if (url) {
-    await bot.telegram.setWebhook(`${url}/webhook`);
+    await bot.telegram.setWebhook(
+      `${url}/webhook`
+    );
+
     console.log('Webhook set');
   }
 });
