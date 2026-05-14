@@ -241,7 +241,11 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
 
 // ================= RENEW =================
 
-bot.action('renew', async (ctx) => {
+bot.catch((err) => {
+  console.error('BOT ERROR:', err);
+});
+
+bot.action(/date_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 
   const students = await getStudents();
