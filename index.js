@@ -51,15 +51,17 @@ async function getStudents() {
 
   const rows = res.data.values || [];
 
-  return rows.map((row, i) => ({
-    row: i + FIRST_DATA_ROW,
-    name: row[0],
-    pack: Number(row[1] || 0),
-    start: row[2],
-    until: row[3],
-    used: Number(row[4] || 0),
-    remaining: Number(row[5] || 0)
-  })).filter(x => x.name);
+  return rows
+    .map((row, i) => ({
+      row: i + FIRST_DATA_ROW,
+      name: row[0],
+      pack: Number(row[1] || 0),
+      start: row[2],
+      until: row[3],
+      used: Number(row[4] || 0),
+      remaining: Number(row[5] || 0)
+    }))
+    .filter(x => x.name);
 }
 
 async function getDates() {
@@ -69,6 +71,8 @@ async function getDates() {
   });
 
   const row = res.data.values?.[0] || [];
+
+  const now = new Date();
 
   return row
     .map((v, i) => ({
@@ -84,12 +88,20 @@ async function getDates() {
       const day = Number(parts[0]);
       const month = Number(parts[1]);
 
-      const now = new Date();
+      if (isNaN(day) || isNaN(month)) return false;
 
       const date = new Date(now.getFullYear(), month - 1, day);
 
       return date <= now;
     });
+}
+
+async function safeEdit(ctx, text, keyboard) {
+  try {
+    await ctx.editMessageText(text, keyboard);
+  } catch (e) {
+    await ctx.reply(text, keyboard);
+  }
 }
 
 // ================= MENU =================
@@ -101,6 +113,8 @@ function mainMenu() {
     [Markup.button.callback('🔄 Продлить абонемент', 'renew')]
   ]);
 }
+
+// ================= START =================
 
 bot.start(async (ctx) => {
   await ctx.reply(
@@ -121,7 +135,8 @@ bot.action('check', async (ctx) => {
     .sort((a, b) => a.remaining - b.remaining);
 
   if (!low.length) {
-    return ctx.editMessageText(
+    return safeEdit(
+      ctx,
       '✅ У всех достаточно занятий',
       mainMenu()
     );
@@ -133,7 +148,8 @@ bot.action('check', async (ctx) => {
     text += `• ${s.name}: осталось ${s.remaining}\n`;
   });
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     text,
     mainMenu()
   );
@@ -160,18 +176,19 @@ bot.action('mark', async (ctx) => {
     Markup.button.callback('⬅️ Назад', 'menu')
   ]);
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     '📅 Выбери дату:',
     Markup.inlineKeyboard(buttons)
   );
 });
 
-// ================= DATE SELECTED =================
+// ================= DATE SELECT =================
 
 bot.action(/date_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 
-  const col = ctx.match[1];
+  const col = Number(ctx.match[1]);
 
   const students = await getStudents();
 
@@ -186,7 +203,8 @@ bot.action(/date_(.+)/, async (ctx) => {
     Markup.button.callback('⬅️ Назад', 'mark')
   ]);
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     '👤 Выбери ученика:',
     Markup.inlineKeyboard(buttons)
   );
@@ -202,6 +220,8 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
 
   const colLetter = columnToLetter(col);
 
+  // Ставим галочку
+
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!${colLetter}${row}`,
@@ -211,8 +231,7 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
     }
   });
 
-  const usedCell = `E${row}`;
-  const remainingCell = `F${row}`;
+  // Получаем текущие значения
 
   const current = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -222,7 +241,12 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
   const values = current.data.values?.[0] || [];
 
   const used = Number(values[0] || 0) + 1;
-  const remaining = Math.max(Number(values[1] || 0) - 1, 0);
+  const remaining = Math.max(
+    Number(values[1] || 0) - 1,
+    0
+  );
+
+  // Обновляем
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
@@ -233,7 +257,8 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
     }
   });
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     '✅ Занятие отмечено',
     mainMenu()
   );
@@ -241,11 +266,7 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
 
 // ================= RENEW =================
 
-bot.catch((err) => {
-  console.error('BOT ERROR:', err);
-});
-
-bot.action(/date_(.+)/, async (ctx) => {
+bot.action('renew', async (ctx) => {
   await ctx.answerCbQuery();
 
   const students = await getStudents();
@@ -253,7 +274,7 @@ bot.action(/date_(.+)/, async (ctx) => {
   const buttons = students.map(s => [
     Markup.button.callback(
       `${s.name} (${s.remaining})`,
-      `renew_${s.row}`
+      `renew_student_${s.row}`
     )
   ]);
 
@@ -261,21 +282,63 @@ bot.action(/date_(.+)/, async (ctx) => {
     Markup.button.callback('⬅️ Назад', 'menu')
   ]);
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     '🔄 Кого продлить?',
     Markup.inlineKeyboard(buttons)
   );
 });
 
-// ================= MENU BACK =================
+// ================= RENEW STUDENT =================
+
+bot.action(/renew_student_(.+)/, async (ctx) => {
+  await ctx.answerCbQuery();
+
+  const row = Number(ctx.match[1]);
+
+  const students = await getStudents();
+
+  const student = students.find(s => s.row === row);
+
+  if (!student) {
+    return ctx.reply('Ошибка');
+  }
+
+  const newUsed = 0;
+  const newRemaining = student.pack;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!E${row}:F${row}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[newUsed, newRemaining]]
+    }
+  });
+
+  await safeEdit(
+    ctx,
+    `✅ Абонемент продлен: ${student.name}`,
+    mainMenu()
+  );
+});
+
+// ================= MENU =================
 
 bot.action('menu', async (ctx) => {
   await ctx.answerCbQuery();
 
-  await ctx.editMessageText(
+  await safeEdit(
+    ctx,
     '🧘 Йога-журнал',
     mainMenu()
   );
+});
+
+// ================= ERROR HANDLER =================
+
+bot.catch((err) => {
+  console.error('BOT ERROR:', err);
 });
 
 // ================= SERVER =================
