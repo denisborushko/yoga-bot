@@ -74,26 +74,42 @@ async function getDates() {
 
   const now = new Date();
 
-  return row
-    .map((v, i) => ({
-      label: v,
-      col: FIRST_DATE_COL + i
-    }))
-    .filter(x => {
-      if (!x.label) return false;
+  const weekdays = [
+    'Вс',
+    'Пн',
+    'Вт',
+    'Ср',
+    'Чт',
+    'Пт',
+    'Сб'
+  ];
 
-      const parts = x.label.split('.');
-      if (parts.length !== 2) return false;
+  return row
+    .map((v, i) => {
+      if (!v) return null;
+
+      const parts = v.split('.');
+
+      if (parts.length !== 2) return null;
 
       const day = Number(parts[0]);
       const month = Number(parts[1]);
 
-      if (isNaN(day) || isNaN(month)) return false;
+      if (isNaN(day) || isNaN(month)) return null;
 
-      const date = new Date(now.getFullYear(), month - 1, day);
+      const date = new Date(
+        now.getFullYear(),
+        month - 1,
+        day
+      );
 
-      return date <= now;
-    });
+      return {
+        label: `${v} (${weekdays[date.getDay()]})`,
+        col: FIRST_DATE_COL + i,
+        date
+      };
+    })
+    .filter(x => x && x.date <= now);
 }
 
 async function safeEdit(ctx, text, keyboard) {
@@ -185,10 +201,10 @@ bot.action('mark', async (ctx) => {
 
 // ================= DATE SELECT =================
 
-bot.action(/date_(.+)/, async (ctx) => {
+bot.action(/^date_(\d+)$/, async (ctx) => {
   await ctx.answerCbQuery();
 
-  const col = Number(ctx.match[1]);
+  const col = parseInt(ctx.match[1]);
 
   const students = await getStudents();
 
@@ -212,7 +228,7 @@ bot.action(/date_(.+)/, async (ctx) => {
 
 // ================= MARK STUDENT =================
 
-bot.action(/student_(.+)_(.+)/, async (ctx) => {
+bot.action(/^student_(\d+)_(\d+)$/, async (ctx) => {
   await ctx.answerCbQuery();
 
   const row = Number(ctx.match[1]);
@@ -220,7 +236,7 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
 
   const colLetter = columnToLetter(col);
 
-  // Ставим галочку
+  // Ставим отметку
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
@@ -241,12 +257,13 @@ bot.action(/student_(.+)_(.+)/, async (ctx) => {
   const values = current.data.values?.[0] || [];
 
   const used = Number(values[0] || 0) + 1;
+
   const remaining = Math.max(
     Number(values[1] || 0) - 1,
     0
   );
 
-  // Обновляем
+  // Обновляем остаток
 
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
@@ -291,7 +308,7 @@ bot.action('renew', async (ctx) => {
 
 // ================= RENEW STUDENT =================
 
-bot.action(/renew_student_(.+)/, async (ctx) => {
+bot.action(/^renew_student_(\d+)$/, async (ctx) => {
   await ctx.answerCbQuery();
 
   const row = Number(ctx.match[1]);
