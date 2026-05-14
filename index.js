@@ -23,30 +23,9 @@ const SHEET_NAME = 'Журнал посещений';
 const FIRST_DATE_COL = 8;
 const FIRST_DATA_ROW = 3;
 
-const COL_NAME = 1;
-const COL_PACK = 2;
-const COL_START = 3;
-const COL_UNTIL = 4;
-const COL_USED = 5;
-const COL_REMAINING = 6;
-
-const PACK_OPTIONS = [4, 8];
-const VALIDITY_DAYS = 28;
 const LOW_THRESHOLD = 2;
 
 // ================= HELPERS =================
-
-function formatDate(d) {
-  const date = new Date(d);
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit'
-  });
-}
-
-function dowRu(d) {
-  return ['вс','пн','вт','ср','чт','пт','сб'][new Date(d).getDay()];
-}
 
 async function getStudents() {
   const res = await sheets.spreadsheets.values.get({
@@ -101,6 +80,8 @@ bot.start(async (ctx) => {
 // ================= CHECK =================
 
 bot.action('check', async (ctx) => {
+  await ctx.answerCbQuery();
+
   const students = await getStudents();
 
   const low = students
@@ -126,6 +107,8 @@ bot.action('check', async (ctx) => {
 // ================= MARK =================
 
 bot.action('mark', async (ctx) => {
+  await ctx.answerCbQuery();
+
   const dates = await getDates();
 
   const buttons = dates.slice(-10).reverse().map(d => [
@@ -145,6 +128,8 @@ bot.action('mark', async (ctx) => {
 // ================= MENU BACK =================
 
 bot.action('menu', async (ctx) => {
+  await ctx.answerCbQuery();
+
   await ctx.editMessageText(
     '🧘 Йога-журнал',
     mainMenu()
@@ -154,6 +139,8 @@ bot.action('menu', async (ctx) => {
 // ================= RENEW =================
 
 bot.action('renew', async (ctx) => {
+  await ctx.answerCbQuery();
+
   const students = await getStudents();
 
   const buttons = students.map(s => [
