@@ -358,31 +358,46 @@ bot.action('done_mark', async (ctx) => {
 
   const colLetter = columnToLetter(session.col);
 
-  for (const student of selectedStudents) {
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!${colLetter}${student.row}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [['✅']]
-      }
-    });
+for (const student of selectedStudents) {
 
-    const used = student.used + 1;
-    const remaining = Math.max(
-      student.remaining - 1,
-      0
-    );
+  const cell = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!${colLetter}${student.row}`
+  });
 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!E${student.row}:F${student.row}`,
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [[used, remaining]]
-      }
-    });
+  const currentValue =
+    cell.data.values?.[0]?.[0];
+
+  // уже отмечено
+  if (currentValue) {
+    continue;
   }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!${colLetter}${student.row}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [['✔']]
+    }
+  });
+
+  const used = student.used + 1;
+
+  const remaining = Math.max(
+    student.remaining - 1,
+    0
+  );
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!E${student.row}:F${student.row}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[used, remaining]]
+    }
+  });
+}
 
   const dates = await getDates();
 
