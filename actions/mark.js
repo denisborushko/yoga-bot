@@ -264,6 +264,8 @@ bot.action(/date_(.+)/, async (ctx) => {
 
 // ================= TOGGLE =================
 
+// ================= TOGGLE =================
+
 bot.action(/toggle_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 
@@ -275,7 +277,9 @@ bot.action(/toggle_(.+)/, async (ctx) => {
 
   // переключаем выбор
   if (session.selected.includes(row)) {
-    session.selected = session.selected.filter(x => x !== row);
+    session.selected = session.selected.filter(
+      x => x !== row
+    );
   } else {
     session.selected.push(row);
   }
@@ -285,13 +289,15 @@ bot.action(/toggle_(.+)/, async (ctx) => {
   const buttons = [];
 
   for (let i = 0; i < students.length; i += 2) {
+
     const rowButtons = [];
 
     const s1 = students[i];
 
-    const checked1 = session.selected.includes(s1.row)
-      ? '✅ '
-      : '';
+    const checked1 =
+      session.selected.includes(s1.row)
+        ? '✅ '
+        : '';
 
     rowButtons.push(
       Markup.button.callback(
@@ -303,9 +309,11 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     const s2 = students[i + 1];
 
     if (s2) {
-      const checked2 = session.selected.includes(s2.row)
-        ? '✅ '
-        : '';
+
+      const checked2 =
+        session.selected.includes(s2.row)
+          ? '✅ '
+          : '';
 
       rowButtons.push(
         Markup.button.callback(
@@ -332,8 +340,11 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     )
   ]);
 
+  // ВАЖНО:
+  // добавляем счетчик выбранных
+
   await ctx.editMessageText(
-    '👤 Выбери учениц:',
+    `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}`,
     Markup.inlineKeyboard(buttons)
   );
 });
