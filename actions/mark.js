@@ -273,6 +273,7 @@ bot.action(/toggle_(.+)/, async (ctx) => {
 
   if (!session) return;
 
+  // переключаем выбор
   if (session.selected.includes(row)) {
     session.selected = session.selected.filter(x => x !== row);
   } else {
@@ -336,7 +337,6 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     Markup.inlineKeyboard(buttons)
   );
 });
-
 // ================= DONE MARK =================
 
 bot.action('done_mark', async (ctx) => {
