@@ -1,3 +1,5 @@
+const { registerMarkActions } = require('./actions/mark');
+const { registerRenewActions } = require('./actions/renew');
 require('dotenv').config();
 
 const express = require('express');
@@ -23,6 +25,8 @@ bot.start(async (ctx) => {
 // ===== ACTIONS =====
 
 registerCheckActions(bot);
+registerMarkActions(bot);
+registerRenewActions(bot);
 
 // ===== ERROR =====
 
