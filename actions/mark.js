@@ -280,12 +280,32 @@ function registerMarkActions(bot) {
 
     }
 
-    delete sessions[ctx.from.id];
+const students = await getStudents();
 
-    await ctx.editMessageText(
-      '✅ Занятия отмечены',
-      mainMenu()
-    );
+const selectedStudents = students.filter(
+  s => session.selected.includes(s.row)
+);
+
+const dates = await getDates();
+
+const currentDate = dates.find(
+  d => d.col === session.col
+);
+
+let text =
+  `✅ Отмечены занятия\n\n` +
+  `📅 ${currentDate.label} (${getWeekday(currentDate.label)})\n\n`;
+
+selectedStudents.forEach(s => {
+  text += `• ${s.name}\n`;
+});
+
+delete sessions[ctx.from.id];
+
+await ctx.editMessageText(
+  text,
+  mainMenu()
+);
 
   });
 
