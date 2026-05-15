@@ -35,7 +35,7 @@ const FIRST_DATA_ROW = 3;
 
 const LOW_THRESHOLD = 2;
 
-// ================= TEMP SELECTIONS =================
+// ================= TEMP STORAGE =================
 
 const selectedStudents = {};
 
@@ -57,6 +57,30 @@ function columnToLetter(column) {
   }
 
   return letter;
+}
+
+function formatDate(date) {
+  const day = String(
+    date.getDate()
+  ).padStart(2, '0');
+
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, '0');
+
+  return `${day}.${month}`;
+}
+
+function getStatusIcon(remaining) {
+  if (remaining <= 0) {
+    return '🔴';
+  }
+
+  if (remaining <= 2) {
+    return '🟡';
+  }
+
+  return '🟢';
 }
 
 async function getStudents() {
@@ -122,11 +146,13 @@ async function getDates() {
         return null;
       }
 
-      let year = now.getFullYear();
+      let year =
+        now.getFullYear();
 
-      // фикс перехода года
+      // переход года
       if (
-        month < now.getMonth() + 1 &&
+        month <
+          now.getMonth() + 1 &&
         now.getMonth() === 11
       ) {
         year++;
@@ -141,7 +167,8 @@ async function getDates() {
       return {
         label:
           `${v} (${weekdays[date.getDay()]})`,
-        col: FIRST_DATE_COL + i,
+        col:
+          FIRST_DATE_COL + i,
         date
       };
     })
@@ -196,38 +223,25 @@ async function renderStudentsSelection(
         s1.row
       );
 
-    const icon1 =
-      s1.remaining <= 0
-        ? '🔴'
-        : s1.remaining <= 2
-        ? '🟡'
-        : '🟢';
-
     row.push(
       Markup.button.callback(
-        `${selected1 ? '✅ ' : ''}${icon1} ${s1.name} (${s1.remaining})`,
+        `${selected1 ? '✅ ' : ''}${getStatusIcon(s1.remaining)} ${s1.name} (${s1.remaining})`,
         `toggle_${s1.row}`
       )
     );
 
     if (students[i + 1]) {
-      const s2 = students[i + 1];
+      const s2 =
+        students[i + 1];
 
       const selected2 =
         session.selected.includes(
           s2.row
         );
 
-      const icon2 =
-        s2.remaining <= 0
-          ? '🔴'
-          : s2.remaining <= 2
-          ? '🟡'
-          : '🟢';
-
       row.push(
         Markup.button.callback(
-          `${selected2 ? '✅ ' : ''}${icon2} ${s2.name} (${s2.remaining})`,
+          `${selected2 ? '✅ ' : ''}${getStatusIcon(s2.remaining)} ${s2.name} (${s2.remaining})`,
           `toggle_${s2.row}`
         )
       );
@@ -253,7 +267,9 @@ async function renderStudentsSelection(
   await safeEdit(
     ctx,
     '👤 Выбери учениц:',
-    Markup.inlineKeyboard(buttons)
+    Markup.inlineKeyboard(
+      buttons
+    )
   );
 }
 
@@ -325,7 +341,7 @@ bot.action('check', async ctx => {
 
     low.forEach(s => {
       text +=
-        `• ${s.name}: осталось ${s.remaining}\n`;
+        `${getStatusIcon(s.remaining)} ${s.name}: осталось ${s.remaining}\n`;
     });
 
     await safeEdit(
@@ -337,7 +353,7 @@ bot.action('check', async ctx => {
     console.log(e);
 
     await ctx.reply(
-      'Ошибка загрузки данных'
+      'Ошибка загрузки'
     );
   }
 });
@@ -491,7 +507,7 @@ bot.action(
       console.log(e);
 
       await ctx.reply(
-        'Ошибка выбора ученицы'
+        'Ошибка выбора'
       );
     }
   }
@@ -522,7 +538,9 @@ bot.action(
         selected
       } = session;
 
-      if (!selected.length) {
+      if (
+        !selected.length
+      ) {
         return ctx.reply(
           'Выберите хотя бы одну ученицу'
         );
@@ -635,13 +653,38 @@ bot.action('renew', async ctx => {
     const students =
       await getStudents();
 
-    const buttons =
-      students.map(s => [
+    const buttons = [];
+
+    for (
+      let i = 0;
+      i < students.length;
+      i += 2
+    ) {
+      const row = [];
+
+      const s1 = students[i];
+
+      row.push(
         Markup.button.callback(
-          `${s.name} (${s.remaining})`,
-          `renew_student_${s.row}`
+          `${getStatusIcon(s1.remaining)} ${s1.name} (${s1.remaining})`,
+          `renew_student_${s1.row}`
         )
-      ]);
+      );
+
+      if (students[i + 1]) {
+        const s2 =
+          students[i + 1];
+
+        row.push(
+          Markup.button.callback(
+            `${getStatusIcon(s2.remaining)} ${s2.name} (${s2.remaining})`,
+            `renew_student_${s2.row}`
+          )
+        );
+      }
+
+      buttons.push(row);
+    }
 
     buttons.push([
       Markup.button.callback(
@@ -666,7 +709,7 @@ bot.action('renew', async ctx => {
   }
 });
 
-// ================= RENEW STUDENT =================
+// ================= SELECT RENEW PACK =================
 
 bot.action(
   /^renew_student_(\d+)$/,
@@ -688,32 +731,123 @@ bot.action(
 
       if (!student) {
         return ctx.reply(
-          'Ошибка'
+          'Ученица не найдена'
         );
       }
 
-      const newUsed = 0;
-      const newRemaining =
-        student.pack;
+      await safeEdit(
+        ctx,
+        `🔄 Продлить абонемент\n\n👤 ${student.name}`,
+        Markup.inlineKeyboard([
+          [
+            Markup.button.callback(
+              '4 занятия',
+              `renew_pack_${row}_4`
+            ),
+            Markup.button.callback(
+              '8 занятий',
+              `renew_pack_${row}_8`
+            )
+          ],
+          [
+            Markup.button.callback(
+              '⬅️ Назад',
+              'renew'
+            )
+          ]
+        ])
+      );
+    } catch (e) {
+      console.log(e);
+
+      await ctx.reply(
+        'Ошибка выбора пакета'
+      );
+    }
+  }
+);
+
+// ================= CONFIRM RENEW =================
+
+bot.action(
+  /^renew_pack_(\d+)_(\d+)$/,
+  async ctx => {
+    await ctx.answerCbQuery();
+
+    try {
+      const row = Number(
+        ctx.match[1]
+      );
+
+      const pack = Number(
+        ctx.match[2]
+      );
+
+      const students =
+        await getStudents();
+
+      const student =
+        students.find(
+          s => s.row === row
+        );
+
+      if (!student) {
+        return ctx.reply(
+          'Ученица не найдена'
+        );
+      }
+
+      const startDate =
+        formatDate(
+          new Date()
+        );
+
+      const untilDateObj =
+        new Date();
+
+      // срок абонемента
+      if (pack === 4) {
+        untilDateObj.setDate(
+          untilDateObj.getDate() +
+            30
+        );
+      } else {
+        untilDateObj.setDate(
+          untilDateObj.getDate() +
+            60
+        );
+      }
+
+      const untilDate =
+        formatDate(
+          untilDateObj
+        );
 
       await sheets.spreadsheets.values.update({
         spreadsheetId:
           SPREADSHEET_ID,
         range:
-          `${SHEET_NAME}!E${row}:F${row}`,
+          `${SHEET_NAME}!B${row}:F${row}`,
         valueInputOption:
           'USER_ENTERED',
         requestBody: {
           values: [[
-            newUsed,
-            newRemaining
+            pack,
+            startDate,
+            untilDate,
+            0,
+            pack
           ]]
         }
       });
 
       await safeEdit(
         ctx,
-        `✅ Абонемент продлен: ${student.name}`,
+        `✅ Абонемент продлен
+
+👤 ${student.name}
+📦 ${pack} занятий
+📅 До ${untilDate}`,
         mainMenu()
       );
     } catch (e) {
@@ -750,7 +884,9 @@ bot.catch(err => {
 // ================= SERVER =================
 
 app.get('/', (req, res) => {
-  res.send('Bot is running');
+  res.send(
+    'Bot is running'
+  );
 });
 
 app.use(
