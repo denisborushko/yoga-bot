@@ -263,7 +263,6 @@ bot.action(/date_(.+)/, async (ctx) => {
 });
 
 // ================= TOGGLE =================
-// ================= TOGGLE =================
 
 bot.action(/toggle_(.+)/, async (ctx) => {
 
@@ -367,90 +366,6 @@ bot.action(/toggle_(.+)/, async (ctx) => {
 
   );
 
-});
-// ================= TOGGLE =================
-
-bot.action(/toggle_(.+)/, async (ctx) => {
-  await ctx.answerCbQuery();
-
-  const row = Number(ctx.match[1]);
-
-  const session = sessions[ctx.from.id];
-
-  if (!session) return;
-
-  // переключаем выбор
-  if (session.selected.includes(row)) {
-    session.selected = session.selected.filter(
-      x => x !== row
-    );
-  } else {
-    session.selected.push(row);
-  }
-
-  const students = await getStudents();
-
-  const buttons = [];
-
-  for (let i = 0; i < students.length; i += 2) {
-
-    const rowButtons = [];
-
-    const s1 = students[i];
-
-    const checked1 =
-      session.selected.includes(s1.row)
-        ? '✅ '
-        : '';
-
-    rowButtons.push(
-      Markup.button.callback(
-        `${checked1}${s1.name} (${s1.remaining})`,
-        `toggle_${s1.row}`
-      )
-    );
-
-    const s2 = students[i + 1];
-
-    if (s2) {
-
-      const checked2 =
-        session.selected.includes(s2.row)
-          ? '✅ '
-          : '';
-
-      rowButtons.push(
-        Markup.button.callback(
-          `${checked2}${s2.name} (${s2.remaining})`,
-          `toggle_${s2.row}`
-        )
-      );
-    }
-
-    buttons.push(rowButtons);
-  }
-
-  buttons.push([
-    Markup.button.callback(
-      '✅ Готово',
-      'done_mark'
-    )
-  ]);
-
-  buttons.push([
-    Markup.button.callback(
-      '⬅️ Назад',
-      'mark'
-    )
-  ]);
-
-  // ВАЖНО:
-  // добавляем счетчик выбранных
-
-  await ctx.editMessageText(
-    `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}`,
-    Markup.inlineKeyboard(buttons)
-  );
 });
 // ================= DONE MARK =================
 
