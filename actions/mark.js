@@ -265,107 +265,74 @@ bot.action(/date_(.+)/, async (ctx) => {
 // ================= TOGGLE =================
 
 bot.action(/toggle_(.+)/, async (ctx) => {
-
   await ctx.answerCbQuery();
 
   const row = Number(ctx.match[1]);
-
   const session = sessions[ctx.from.id];
 
   if (!session) return;
 
-  // toggle
+  // toggle выбора
   if (session.selected.includes(row)) {
-
-    session.selected =
-      session.selected.filter(
-        x => x !== row
-      );
-
+    session.selected = session.selected.filter(x => x !== row);
   } else {
-
     session.selected.push(row);
-
   }
 
+  // строим клавиатуру заново с галочками
   const students = await getStudents();
-
   const buttons = [];
 
   for (let i = 0; i < students.length; i += 2) {
-
     const rowButtons = [];
+    const left = students[i];
+    const right = students[i + 1];
 
     // LEFT
-
-    const left = students[i];
-
-    const leftChecked =
-      session.selected.includes(left.row)
-        ? '✅ '
-        : '';
-
+    const leftChecked = session.selected.includes(left.row) ? '✅ ' : '';
     rowButtons.push(
-
       Markup.button.callback(
         `${leftChecked}${left.name} (${left.remaining})`,
         `toggle_${left.row}`
       )
-
     );
 
     // RIGHT
-
-    const right = students[i + 1];
-
     if (right) {
-
-      const rightChecked =
-        session.selected.includes(right.row)
-          ? '✅ '
-          : '';
-
+      const rightChecked = session.selected.includes(right.row) ? '✅ ' : '';
       rowButtons.push(
-
         Markup.button.callback(
           `${rightChecked}${right.name} (${right.remaining})`,
           `toggle_${right.row}`
         )
-
       );
-
     }
 
     buttons.push(rowButtons);
-
   }
 
   buttons.push([
-
     Markup.button.callback(
       `✅ Готово (${session.selected.length})`,
       'done_mark'
     )
-
   ]);
 
   buttons.push([
-
     Markup.button.callback(
       '⬅️ Назад',
       'mark'
     )
-
   ]);
 
-  await ctx.editMessageText(
-
-    `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}`,
-
-    Markup.inlineKeyboard(buttons)
-
-  );
-
+  // Обновляем ТОЛЬКО клавиатуру (надёжнее чем editMessageText)
+  try {
+    await ctx.editMessageReplyMarkup(
+      Markup.inlineKeyboard(buttons).reply_markup
+    );
+  } catch (e) {
+    // игнорируем "message is not modified"
+  }
 });
 // ================= DONE MARK =================
 
