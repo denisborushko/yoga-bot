@@ -273,7 +273,7 @@ bot.action(/toggle_(.+)/, async (ctx) => {
 
   if (!session) return;
 
-  // toggle
+  // toggle selection
   if (session.selected.includes(row)) {
 
     session.selected =
@@ -307,7 +307,7 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     const leftChecked =
       session.selected.includes(left.row)
         ? '✅ '
-        : '';
+        : '⬜️ ';
 
     rowButtons.push(
       Markup.button.callback(
@@ -322,7 +322,7 @@ bot.action(/toggle_(.+)/, async (ctx) => {
       const rightChecked =
         session.selected.includes(right.row)
           ? '✅ '
-          : '';
+          : '⬜️ ';
 
       rowButtons.push(
         Markup.button.callback(
@@ -350,17 +350,18 @@ bot.action(/toggle_(.+)/, async (ctx) => {
   ]);
 
   // ВАЖНО:
-  // обновляем ТОЛЬКО клавиатуру
+  // меняем текст каждый раз
+  // чтобы Telegram точно обновил UI
+
+  const uniqueText =
+    `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}\n${Date.now()}`;
+
   try {
 
-    await ctx.editMessageReplyMarkup({
-      inline_keyboard: buttons.map(r =>
-        r.map(b => ({
-          text: b.text,
-          callback_data: b.callback_data
-        }))
-      )
-    });
+    await ctx.editMessageText(
+      uniqueText,
+      Markup.inlineKeyboard(buttons)
+    );
 
   } catch (e) {
 
