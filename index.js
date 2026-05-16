@@ -34,26 +34,8 @@ bot.catch((err) => {
   console.error(err);
 });
 
-// ===== SERVER =====
+// ================= LOCAL BOT =================
 
-app.get('/', (req, res) => {
-  res.send('Bot is running');
-});
+bot.launch();
 
-app.use(bot.webhookCallback('/webhook'));
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, async () => {
-
-  console.log('Server started');
-
-  if (process.env.RENDER_EXTERNAL_URL) {
-
-    await bot.telegram.setWebhook(
-      `${process.env.RENDER_EXTERNAL_URL}/webhook`
-    );
-
-    console.log('Webhook set');
-  }
-});
+console.log('Bot started locally');
