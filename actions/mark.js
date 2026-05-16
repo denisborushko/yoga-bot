@@ -268,28 +268,47 @@ bot.action(/toggle_(.+)/, async (ctx) => {
   await ctx.answerCbQuery();
 
   const row = Number(ctx.match[1]);
+
   const session = sessions[ctx.from.id];
 
   if (!session) return;
 
-  // toggle выбора
+  // toggle
   if (session.selected.includes(row)) {
-    session.selected = session.selected.filter(x => x !== row);
+
+    session.selected =
+      session.selected.filter(
+        x => x !== row
+      );
+
   } else {
+
     session.selected.push(row);
+
   }
 
-  // строим клавиатуру заново с галочками
-  const students = await getStudents();
+  const students =
+    await getStudents();
+
   const buttons = [];
 
-  for (let i = 0; i < students.length; i += 2) {
+  for (
+    let i = 0;
+    i < students.length;
+    i += 2
+  ) {
+
     const rowButtons = [];
+
     const left = students[i];
     const right = students[i + 1];
 
     // LEFT
-    const leftChecked = session.selected.includes(left.row) ? '✅ ' : '';
+    const leftChecked =
+      session.selected.includes(left.row)
+        ? '✅ '
+        : '';
+
     rowButtons.push(
       Markup.button.callback(
         `${leftChecked}${left.name} (${left.remaining})`,
@@ -299,7 +318,12 @@ bot.action(/toggle_(.+)/, async (ctx) => {
 
     // RIGHT
     if (right) {
-      const rightChecked = session.selected.includes(right.row) ? '✅ ' : '';
+
+      const rightChecked =
+        session.selected.includes(right.row)
+          ? '✅ '
+          : '';
+
       rowButtons.push(
         Markup.button.callback(
           `${rightChecked}${right.name} (${right.remaining})`,
@@ -325,14 +349,23 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     )
   ]);
 
-  // Обновляем клавиатуру
+  // ВАЖНО:
+  // обновляем ТОЛЬКО клавиатуру
   try {
-    await ctx.editMessageText(
-      `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}`,
-      Markup.inlineKeyboard(buttons)
-    );
+
+    await ctx.editMessageReplyMarkup({
+      inline_keyboard: buttons.map(r =>
+        r.map(b => ({
+          text: b.text,
+          callback_data: b.callback_data
+        }))
+      )
+    });
+
   } catch (e) {
-    // игнор "message is not modified"
+
+    console.log(e);
+
   }
 });
 // ================= DONE MARK =================
