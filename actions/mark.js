@@ -325,13 +325,14 @@ bot.action(/toggle_(.+)/, async (ctx) => {
     )
   ]);
 
-  // Обновляем ТОЛЬКО клавиатуру (надёжнее чем editMessageText)
+  // Обновляем клавиатуру
   try {
-    await ctx.editMessageReplyMarkup(
-      Markup.inlineKeyboard(buttons).reply_markup
+    await ctx.editMessageText(
+      `👤 Выбери учениц:\n\nВыбрано: ${session.selected.length}`,
+      Markup.inlineKeyboard(buttons)
     );
   } catch (e) {
-    // игнорируем "message is not modified"
+    // игнор "message is not modified"
   }
 });
 // ================= DONE MARK =================
